@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 
 class MessageCreate(BaseModel):
@@ -24,5 +25,8 @@ class MessageRead(BaseModel):
 
 
 class ChatRequest(BaseModel):
+    # alias_generator accepts camelCase from JS clients (conversationId → conversation_id)
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
     conversation_id: uuid.UUID
     content: str

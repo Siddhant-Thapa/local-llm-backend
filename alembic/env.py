@@ -8,17 +8,17 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-# Import Base so Alembic can see all mapped models for autogenerate
+# Import Base to register all models for autogenerate
 from app.database import Base
 from app.config import settings
 
-# Import models to register them with Base.metadata
+# Register models so their tables appear in Base.metadata
 import app.models.conversation  # noqa: F401
 import app.models.message  # noqa: F401
 
 config = context.config
 
-# Override sqlalchemy.url from application settings so .env is the single source of truth
+# Pull the DB URL from app settings — .env is the single source of truth
 config.set_main_option("sqlalchemy.url", settings.database_url)
 
 if config.config_file_name is not None:
@@ -28,7 +28,7 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    """Run migrations without a live database connection (generates SQL script)."""
+    """Generate SQL script without a live connection."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -47,7 +47,7 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_async_migrations() -> None:
-    """Create an async engine and run migrations via run_sync."""
+    """Create a fresh async engine for Alembic — does not share the app engine."""
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

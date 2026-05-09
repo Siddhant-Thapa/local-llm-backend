@@ -28,7 +28,7 @@ Nginx :80/:443
 
 ## Prerequisites (local dev)
 
-- Python 3.11+
+- Python 3.12+ (matches Ubuntu 25.04 system Python on EC2)
 - PostgreSQL 15 running locally on port 5432
 - (Optional) llama.cpp built natively if you want real LLM responses
 
@@ -52,8 +52,8 @@ docker run -d --name llmchat-pg \
   -p 5432:5432 \
   postgres:15-alpine
 
-# 3. Set up Python env
-python3.11 -m venv .venv && source .venv/bin/activate
+# 3. Set up Python env (Python 3.12+ required)
+python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
 # 4. Configure environment

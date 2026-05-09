@@ -8,21 +8,24 @@ Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu
 
+# Flags confirmed stable on t3.micro (1 GB RAM + 2 GB swap):
+# --threads 1    : single inference thread — leaves headroom for FastAPI and OS
+# --parallel 1   : prevents llama.cpp spawning 4 KV-cache slots (~200 MB saving)
+# --no-mmap      : avoids CPU_REPACK buffer overhead (~455 MB) seen without this flag
+# --ctx-size 2048: keeps KV cache at ~44 MB; never raise this on this instance
 ExecStart=/home/ubuntu/llama.cpp/build/bin/llama-server \
     --model /home/ubuntu/models/tinyllama.gguf \
     --host 127.0.0.1 \
     --port 8080 \
     --ctx-size 2048 \
     --threads 1 \
-    --batch-size 512 \
-    --n-predict -1 \
-    --log-disable
+    --parallel 1 \
+    --no-mmap
 
 Restart=on-failure
 RestartSec=10
 
-# OOMScoreAdjust=500 tells the kernel to prefer killing this process over the OS
-# if memory pressure occurs — protects system stability at the cost of llama.cpp
+# Prefer killing this process over the OS under memory pressure
 OOMScoreAdjust=500
 
 [Install]

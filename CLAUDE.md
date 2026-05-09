@@ -4,12 +4,12 @@ Re-read this file at the start of every session before touching any code.
 
 ## Project Overview
 
-This is the FastAPI backend for a self-hosted LLM chat application running on a single
-EC2 t2.micro instance (1 vCPU, 1 GB RAM + 2 GB swap). The tight memory budget shapes
-every architectural decision: one llama.cpp worker, async-only DB access, SSE instead
-of WebSockets, and a strictly capped context window. The backend proxies chat requests
-to a local llama.cpp HTTP server, streams tokens back to the browser via SSE, and
-persists conversations and messages in PostgreSQL 15.
+This is the FastAPI backend for a self-hosted LLM chat application running on an EC2
+t3.micro instance (2 vCPU, 1 GB RAM + 2 GB swap, Ubuntu 25.04, ap-south-1). The tight
+memory budget shapes every architectural decision: one llama.cpp worker, async-only DB
+access, SSE instead of WebSockets, and a strictly capped context window. The backend
+proxies chat requests to a local llama.cpp HTTP server, streams tokens back to the
+browser via SSE, and persists conversations and messages in PostgreSQL 15 on RDS.
 
 ---
 
@@ -24,7 +24,7 @@ persists conversations and messages in PostgreSQL 15.
 | Streaming approach | SSE (Server-Sent Events) | One-directional server push; no auth header upgrade needed; works through Nginx with `proxy_buffering off` |
 | ORM | SQLAlchemy 2.0 async | Native async support with asyncpg; type-safe mapped columns |
 | Migration tool | Alembic | Standard companion to SQLAlchemy; supports async engines via `run_sync` |
-| Python runtime | 3.11 | Required for `tomllib`, better async perf, type annotation improvements |
+| Python runtime | 3.12 | System Python on Ubuntu 25.04; better async perf, `tomllib` built-in, improved type annotations |
 
 ---
 
@@ -32,21 +32,24 @@ persists conversations and messages in PostgreSQL 15.
 
 | Component | Approx RAM |
 |---|---|
-| Ubuntu OS + swap daemon | ~250 MB |
-| llama.cpp server + model | ~700 MB |
-| PostgreSQL 15 | ~50 MB |
+| Ubuntu OS (25.04) | ~250 MB |
+| llama.cpp + model (with --no-mmap, --parallel 1) | ~700 MB |
 | FastAPI (uvicorn, 1 worker) | ~40 MB |
 | Nginx | ~10 MB |
-| **Headroom** | **~18 MB** (of 1024 MB physical + 2048 MB swap) |
+| **Total** | **~1000 MB** |
+| **Overflow to swap** | **~0–100 MB** |
 
-> Swap absorbs llama.cpp startup spikes. Keep it enabled; never disable.
+> PostgreSQL is on RDS — no local Postgres process.
+> Swap (2 GB, swappiness=10) absorbs llama.cpp startup spikes. Never disable it.
 
 ---
 
 ## Critical Constraints
 
-- **Never** increase `--ctx-size` above `2048` when launching llama.cpp on t2.micro
-- **Never** run more than 1 llama.cpp worker thread (`--threads 1`)
+- **Never** increase `--ctx-size` above `2048` on this instance — confirmed stable at 2048 (~44 MB KV cache)
+- **Never** raise `--parallel` above `1` — prevents 4 KV-cache slots from spawning (~200 MB saving)
+- **Always** use `--no-mmap` — avoids CPU_REPACK buffer overhead (~455 MB) confirmed on this hardware
+- **Never** run more than 1 llama.cpp thread (`--threads 1`) — leaves headroom for FastAPI and OS
 - **Never** import `torch`, `transformers`, or any CUDA library in this codebase
 - **Always** use `stream=True` when calling llama.cpp — blocking calls will hold the
   connection open and eventually timeout Nginx (default 60 s)
@@ -90,9 +93,9 @@ persists conversations and messages in PostgreSQL 15.
    ```
    cp .env.example .env
    ```
-3. Create a Python virtual environment and install deps:
+3. Create a Python virtual environment and install deps (requires Python 3.12+):
    ```
-   python3.11 -m venv .venv
+   python3 -m venv .venv
    source .venv/bin/activate
    pip install -e ".[dev]"
    ```
