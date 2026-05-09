@@ -1,0 +1,23 @@
+[Unit]
+Description=LLM Chat FastAPI backend
+After=network.target postgresql.service llama-server.service
+Wants=llama-server.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/llm-chat/backend
+EnvironmentFile=/home/ubuntu/llm-chat/backend/.env
+
+ExecStart=/home/ubuntu/llm-chat/backend/.venv/bin/uvicorn \
+    app.main:app \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --workers 1 \
+    --log-level info
+
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

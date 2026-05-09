@@ -1,0 +1,29 @@
+[Unit]
+Description=llama.cpp inference server
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu
+
+ExecStart=/home/ubuntu/llama.cpp/build/bin/llama-server \
+    --model /home/ubuntu/models/tinyllama.gguf \
+    --host 127.0.0.1 \
+    --port 8080 \
+    --ctx-size 2048 \
+    --threads 1 \
+    --batch-size 512 \
+    --n-predict -1 \
+    --log-disable
+
+Restart=on-failure
+RestartSec=10
+
+# OOMScoreAdjust=500 tells the kernel to prefer killing this process over the OS
+# if memory pressure occurs — protects system stability at the cost of llama.cpp
+OOMScoreAdjust=500
+
+[Install]
+WantedBy=multi-user.target
