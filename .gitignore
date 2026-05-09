@@ -19,7 +19,7 @@ build/
 # Model files — too large for git
 *.gguf
 *.bin
-models/
+/models/
 
 # Editor
 .vscode/
